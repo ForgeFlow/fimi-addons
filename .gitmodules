@@ -3,3 +3,8 @@
 	url = git@github.com:OCA/reporting-engine.git
 	branch = 11.0
 
+
+[submodule "Eficent/manufacture-reporting"]
+	path = Eficent/manufacture-reporting
+	url = git@github.com:Eficent/manufacture-reporting.git
+	branch = 11.0-mig-mrp_flattened_bom_xlsx
