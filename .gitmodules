@@ -3,7 +3,3 @@
 	url = git@github.com:OCA/reporting-engine.git
 	branch = 11.0
 
-[submodule "hveficent/manufacture-reporting"]
-	path = hveficent/manufacture-reporting
-	url = git@github.com:hveficent/manufacture-reporting.git
-	branch = 11.0-mig-FIMICROTECH
