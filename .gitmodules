@@ -22,3 +22,8 @@
 	path = hveficent/purchase-workflow
 	url = git@github.com:hveficent/purchase-workflow.git
 	branch = 11.0-mig-purchase_request
+
+[submodule "hveficent/purchase-workflow-dev"]
+	path = hveficent/purchase-workflow-dev
+	url = git@github.com:hveficent/purchase-workflow.git
+	branch = 11.0-add-purchar_request_service
