@@ -17,3 +17,8 @@
 	path = Eficent/manufacture
 	url = git@github.com:Eficent/manufacture.git
 	branch = 11.0-mig-mrp_production_service
+
+[submodule "hveficent/purchase-workflow"]
+	path = hveficent/purchase-workflow
+	url = git@github.com:hveficent/purchase-workflow.git
+	branch = 11.0-mig-purchase_request
