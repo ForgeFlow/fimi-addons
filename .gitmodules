@@ -7,3 +7,8 @@
 	path = OCA/manufacture-reporting
 	url = git@github.com:OCA/manufacture-reporting.git
 	branch = 11.0
+
+[submodule "OCA/purchase-workflow"]
+	path = OCA/purchase-workflow
+	url = git@github.com:OCA/purchase-workflow.git
+	branch = 11.0
