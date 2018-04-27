@@ -12,3 +12,8 @@
 	path = OCA/purchase-workflow
 	url = git@github.com:OCA/purchase-workflow.git
 	branch = 11.0
+
+[submodule "Eficent/manufacture"]
+	path = Eficent/manufacture
+	url = git@github.com:Eficent/manufacture.git
+	branch = 11.0-mig-mrp_production_service
