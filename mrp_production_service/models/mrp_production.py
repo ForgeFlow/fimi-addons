@@ -49,6 +49,6 @@ class MrpProduction(models.Model):
                 picking_type=production.bom_id.picking_type_id)
             for line in lines:
                 if line[0].product_id.type == 'service':
-                    production._action_launch_procurement_rule(line[0],
+                    self.._action_launch_procurement_rule(line[0],
                                                                production)
         return res
