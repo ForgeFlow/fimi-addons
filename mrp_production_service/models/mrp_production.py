@@ -8,8 +8,9 @@ from odoo import api, models
 class MrpProduction(models.Model):
     _inherit = "mrp.production"
 
-    @api.model
+    @api.multi
     def _prepare_service_procurement_values(self):
+        self.ensure_one()
         location = self.location_src_id
         return {
             'company_id': self.company_id,
@@ -19,19 +20,14 @@ class MrpProduction(models.Model):
         }
 
     @api.model
-    def _create_service_procurement(self, line):
-        data = self._prepare_service_procurement(line)
-        return self.env['procurement.rule'].create(data)
-
-    @api.model
-    def _action_launch_procurement_rule(self, line):
+    def _action_launch_procurement_rule(self, bom_line, dict):
         values = self._prepare_service_procurement_values()
 
-        name = '%s for %s' % (line.product_id.name,
+        name = '%s for %s' % (bom_line.product_id.name,
                               self.name)
         self.env['procurement.group'].sudo().run(
-            line.product_id, self.product_qty,
-            line.product_uom_id,
+            bom_line.product_id, dict['qty'],
+            bom_line.product_uom_id,
             self.location_src_id, name,
             name, values)
         return True
@@ -49,5 +45,6 @@ class MrpProduction(models.Model):
                 picking_type=production.bom_id.picking_type_id)
             for line in lines:
                 if line[0].product_id.type == 'service':
-                    production._action_launch_procurement_rule(line[0])
+                    production._action_launch_procurement_rule(
+                        line[0], line[1])
         return res

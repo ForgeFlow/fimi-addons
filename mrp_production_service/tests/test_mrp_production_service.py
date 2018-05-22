@@ -46,7 +46,7 @@ class TestMrpProductionService(TransactionCase):
         self.bom_line_model.create({
             'bom_id': self.bom.id,
             'product_id': self.service.id,
-            'product_qty': 1,
+            'product_qty': 2,
         })
 
     def test_bom_production_service(self):
@@ -66,4 +66,4 @@ class TestMrpProductionService(TransactionCase):
 
         self.assertEqual(len(production_service), 1)
         self.assertEqual(production_service.product_id.type, 'service')
-        self.assertEqual(production_service.product_qty, 3.0)
+        self.assertEqual(production_service.product_qty, 6.0)
