@@ -1,3 +1,4 @@
+from . import orderpoint
 from . import purchase_request
 from . import procurement_rule
 from . import product_template
