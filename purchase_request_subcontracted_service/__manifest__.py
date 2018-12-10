@@ -5,6 +5,7 @@
     "author": "Eficent Business and IT Consulting Services S.L., "
               "Odoo Community Association (OCA)",
     "version": "11.0.1.0.0",
+    "website": "https://github.com/OCA/purchase-workflow",
     "summary": "Glue module to purchase request on services.",
     "category": "Purchase Management",
     "depends": [
@@ -13,8 +14,6 @@
     ],
     "data": [
         "views/product_template.xml",
-    ],
-    'demo': [
     ],
     "license": 'LGPL-3',
     'installable': True,

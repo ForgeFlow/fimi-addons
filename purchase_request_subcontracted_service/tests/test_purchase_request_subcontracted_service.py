@@ -15,3 +15,5 @@ class TestPurchaseRequestSubcontractedService(TransactionCase):
     def test_service_has_purchase_request_route(self):
         self.subcontracted_service.purchase_request_service = True
         self.assertTrue(self.subcontracted_service.purchase_request)
+        self.subcontracted_service.purchase_request = False
+        self.assertFalse(self.subcontracted_services.purchase_request_service)

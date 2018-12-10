@@ -1,6 +1,6 @@
 // © 2017 Creu Blanca
 // License AGPL-3.0 or later (https://www.gnuorg/licenses/agpl.html).
-odoo.define('report_xml.report', function(require){
+odoo.define('report_xlsx.report', function(require){
 'use strict';
 
 var ActionManager= require('web.ActionManager');
@@ -14,9 +14,14 @@ ActionManager.include({
         if (cloned_action.report_type === 'xlsx') {
             framework.blockUI();
             var report_xlsx_url = 'report/xlsx/' + cloned_action.report_name;
-            if(cloned_action.context.active_ids){
-                report_xlsx_url += '/' + cloned_action.context.active_ids.join(',');
-            }else{
+            if (_.isUndefined(cloned_action.data) ||
+                _.isNull(cloned_action.data) ||
+                (_.isObject(cloned_action.data) && _.isEmpty(cloned_action.data)))
+            {
+                if(cloned_action.context.active_ids) {
+                    report_xlsx_url += '/' + cloned_action.context.active_ids.join(',');
+                }
+            } else {
                 report_xlsx_url += '?options=' + encodeURIComponent(JSON.stringify(cloned_action.data));
                 report_xlsx_url += '&context=' + encodeURIComponent(JSON.stringify(cloned_action.context));
             }
