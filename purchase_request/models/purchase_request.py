@@ -2,8 +2,8 @@
 # License LGPL-3.0 or later (http://www.gnu.org/licenses/lgpl-3.0).
 
 from odoo import api, fields, models, _
-from odoo.exceptions import UserError, Warning
 import odoo.addons.decimal_precision as dp
+from odoo.exceptions import UserError
 
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
@@ -57,10 +57,10 @@ class PurchaseRequest(models.Model):
             else:
                 rec.is_editable = True
 
-    name = fields.Char('Request Reference', size=32, required=True,
+    name = fields.Char('Request Reference', required=True,
                        default=_get_default_name,
                        track_visibility='onchange')
-    origin = fields.Char('Source Document', size=32)
+    origin = fields.Char('Source Document')
     date_start = fields.Date('Creation date',
                              help="Date when the user initiated the "
                                   "request.",
@@ -71,8 +71,11 @@ class PurchaseRequest(models.Model):
                                    required=True,
                                    track_visibility='onchange',
                                    default=_get_default_requested_by)
-    assigned_to = fields.Many2one('res.users', 'Approver',
-                                  track_visibility='onchange')
+    assigned_to = fields.Many2one(
+        'res.users', 'Approver', track_visibility='onchange',
+        domain=lambda self: [('groups_id', 'in', self.env.ref(
+            'purchase_request.group_purchase_request_manager').id)]
+    )
     description = fields.Text('Description')
     company_id = fields.Many2one('res.company', 'Company',
                                  required=True,
@@ -98,7 +101,8 @@ class PurchaseRequest(models.Model):
     picking_type_id = fields.Many2one('stock.picking.type',
                                       'Picking Type', required=True,
                                       default=_default_picking_type)
-
+    group_id = fields.Many2one('procurement.group', string="Procurement Group",
+                               copy=False)
     line_count = fields.Integer(
         string='Purchase Request Line count',
         compute='_compute_line_count',
@@ -119,7 +123,7 @@ class PurchaseRequest(models.Model):
         elif lines:
             action['views'] = [(self.env.ref(
                 'purchase_request.purchase_request_line_form').id, 'form')]
-            action['res_id'] = lines.id
+            action['res_id'] = lines.ids[0]
         return action
 
     @api.multi
@@ -209,8 +213,7 @@ class PurchaseRequestLine(models.Model):
     _description = "Purchase Request Line"
     _inherit = ['mail.thread', 'mail.activity.mixin']
 
-    name = fields.Char('Description', size=256,
-                       track_visibility='onchange')
+    name = fields.Char('Description', track_visibility='onchange')
     product_uom_id = fields.Many2one('product.uom', 'Product Unit of Measure',
                                      track_visibility='onchange')
     product_qty = fields.Float('Quantity', track_visibility='onchange',
@@ -241,8 +244,7 @@ class PurchaseRequestLine(models.Model):
                               string='Description', readonly=True,
                               store=True)
     origin = fields.Char(related='request_id.origin',
-                         size=32, string='Source Document', readonly=True,
-                         store=True)
+                         string='Source Document', readonly=True, store=True)
     date_required = fields.Date(string='Request Date', required=True,
                                 track_visibility='onchange',
                                 default=fields.Date.context_today)
@@ -275,11 +277,11 @@ class PurchaseRequestLine(models.Model):
         self.env['purchase.order']._fields['state'].selection,
         store=True,
     )
-    group_id = fields.Many2one('procurement.group', string="Procurement Group",
-                               copy=False)
     move_dest_ids = fields.One2many('stock.move',
                                     'created_purchase_request_line_id',
                                     'Downstream Moves')
+
+    orderpoint_id = fields.Many2one('stock.warehouse.orderpoint', 'Orderpoint')
 
     @api.multi
     @api.depends('product_id', 'name', 'product_uom_id', 'product_qty',
@@ -401,7 +403,7 @@ class PurchaseRequestLine(models.Model):
         return seller_min_qty
 
     @api.model
-    def _calc_new_qty(self, request_line, po_line=None, cancel=False,
+    def _calc_new_qty(self, request_line, po_line=None,
                       new_pr_line=False):
         purchase_uom = po_line.product_uom or request_line.product_id.uom_po_id
         uom = request_line.product_uom_id
@@ -418,18 +420,13 @@ class PurchaseRequestLine(models.Model):
         for rl in po_line.purchase_request_lines:
             rl_qty += rl.product_uom_id._compute_quantity(
                 rl.product_qty, purchase_uom)
-        new_qty = 0.0
-        if not new_pr_line:
-            new_qty = qty + po_line.product_qty
-
-        qty = max(rl_qty, supplierinfo_min_qty, new_qty)
-
+        qty = max(rl_qty, supplierinfo_min_qty)
         return qty
 
     @api.multi
     def unlink(self):
         if self.mapped('purchase_lines'):
-            raise Warning(
+            raise UserError(
                 _('You cannot delete a record that refers to purchase '
                   'lines!'))
         return super(PurchaseRequestLine, self).unlink()

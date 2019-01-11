@@ -1,8 +1,10 @@
 # Copyright 2018 Eficent Business and IT Consulting Services S.L.
 # License LGPL-3.0 or later (http://www.gnu.org/licenses/lgpl-3.0).
 
+
+from odoo import api, fields, models, _
 import odoo.addons.decimal_precision as dp
-from odoo import _, api, exceptions, fields, models
+from odoo.exceptions import UserError
 
 
 class PurchaseRequestLineMakePurchaseOrder(models.TransientModel):
@@ -10,15 +12,17 @@ class PurchaseRequestLineMakePurchaseOrder(models.TransientModel):
     _description = "Purchase Request Line Make Purchase Order"
 
     supplier_id = fields.Many2one('res.partner', string='Supplier',
-                                  required=False,
-                                  domain=[('supplier', '=', True)])
+                                  required=True,
+                                  domain=[('supplier', '=', True),
+                                          ('is_company', '=', True)])
     item_ids = fields.One2many(
         'purchase.request.line.make.purchase.order.item',
         'wiz_id', string='Items')
     purchase_order_id = fields.Many2one('purchase.order',
                                         string='Purchase Order',
-                                        required=False,
                                         domain=[('state', '=', 'draft')])
+    sync_data_planned = fields.Boolean(
+        string="Merge on PO lines with equal Scheduled Date")
 
     @api.model
     def _prepare_item(self, line):
@@ -39,19 +43,19 @@ class PurchaseRequestLineMakePurchaseOrder(models.TransientModel):
         for line in self.env['purchase.request.line'].browse(request_line_ids):
 
             if line.request_id.state != 'approved':
-                raise exceptions.Warning(
+                raise UserError(
                     _('Purchase Request %s is not approved') %
                     line.request_id.name)
 
             if line.purchase_state == 'done':
-                raise exceptions.Warning(
+                raise UserError(
                     _('The purchase has already been completed.'))
 
             line_company_id = line.company_id \
                 and line.company_id.id or False
             if company_id is not False \
                     and line_company_id != company_id:
-                raise exceptions.Warning(
+                raise UserError(
                     _('You have to select lines '
                       'from the same company.'))
             else:
@@ -59,11 +63,11 @@ class PurchaseRequestLineMakePurchaseOrder(models.TransientModel):
 
             line_picking_type = line.request_id.picking_type_id or False
             if not line_picking_type:
-                raise exceptions.Warning(
+                raise UserError(
                     _('You have to enter a Picking Type.'))
             if picking_type is not False \
                     and line_picking_type != picking_type:
-                raise exceptions.Warning(
+                raise UserError(
                     _('You have to select lines '
                       'from the same Picking Type.'))
             else:
@@ -80,12 +84,17 @@ class PurchaseRequestLineMakePurchaseOrder(models.TransientModel):
             return res
         assert active_model == 'purchase.request.line', \
             'Bad context propagation'
-
         items = []
+        groups = []
         self._check_valid_request_line(request_line_ids)
         request_lines = request_line_obj.browse(request_line_ids)
         for line in request_lines:
             items.append([0, 0, self._prepare_item(line)])
+            groups.append(line.request_id.group_id.id)
+        if len(list(set(groups))) > 1:
+            raise UserError(
+                _('You cannot create a single purchase order from '
+                  'purchase requests that have different procurement group.'))
         res['item_ids'] = items
         supplier_ids = request_lines.mapped('supplier_id').ids
         if len(supplier_ids) == 1:
@@ -93,9 +102,9 @@ class PurchaseRequestLineMakePurchaseOrder(models.TransientModel):
         return res
 
     @api.model
-    def _prepare_purchase_order(self, picking_type, company, origin):
+    def _prepare_purchase_order(self, picking_type, group_id, company, origin):
         if not self.supplier_id:
-            raise exceptions.Warning(
+            raise UserError(
                 _('Enter a supplier.'))
         supplier = self.supplier_id
         data = {
@@ -105,6 +114,7 @@ class PurchaseRequestLineMakePurchaseOrder(models.TransientModel):
             supplier.property_account_position_id.id or False,
             'picking_type_id': picking_type.id,
             'company_id': company.id,
+            'group_id': group_id.id,
             }
         return data
 
@@ -149,8 +159,6 @@ class PurchaseRequestLineMakePurchaseOrder(models.TransientModel):
             'date_planned': item.line_id.date_required,
             'move_dest_ids': [(4, x.id) for x in item.line_id.move_dest_ids]
         }
-        # if item.line_id.procurement_id:
-        #     vals['procurement_ids'] = [(4, item.line_id.procurement_id.id)]
         self._execute_purchase_line_onchange(vals)
         return vals
 
@@ -172,11 +180,14 @@ class PurchaseRequestLineMakePurchaseOrder(models.TransientModel):
         order_line_data = [('order_id', '=', order.id),
                            ('name', '=', name),
                            ('product_id', '=', item.product_id.id or False),
-                           ('date_planned', '=', item.line_id.date_required),
                            ('product_uom', '=', vals['product_uom']),
                            ('account_analytic_id', '=',
                             item.line_id.analytic_account_id.id or False),
                            ]
+        if self.sync_data_planned:
+            order_line_data += [
+                ('date_planned', '=', item.line_id.date_required)
+            ]
         if not item.product_id:
             order_line_data.append(('name', '=', item.name))
         return order_line_data
@@ -192,13 +203,15 @@ class PurchaseRequestLineMakePurchaseOrder(models.TransientModel):
         for item in self.item_ids:
             line = item.line_id
             if item.product_qty <= 0.0:
-                raise exceptions.Warning(
+                raise UserError(
                     _('Enter a positive quantity.'))
             if self.purchase_order_id:
                 purchase = self.purchase_order_id
             if not purchase:
                 po_data = self._prepare_purchase_order(
-                    line.request_id.picking_type_id, line.company_id,
+                    line.request_id.picking_type_id,
+                    line.request_id.group_id,
+                    line.company_id,
                     line.origin)
                 purchase = purchase_obj.create(po_data)
 
@@ -263,8 +276,8 @@ class PurchaseRequestLineMakePurchaseOrderItem(models.TransientModel):
     keep_description = fields.Boolean(string='Copy descriptions to new PO',
                                       help='Set true if you want to keep the '
                                            'descriptions provided in the '
-                                           'wizard in the new PO.',
-                                      default=False)
+                                           'wizard in the new PO.'
+                                      )
 
     @api.onchange('product_id')
     def onchange_product_id(self):

@@ -21,19 +21,22 @@ class ProcurementRule(models.Model):
             'product_qty': procurement_uom_po_qty,
             'request_id': request_id.id,
             'move_dest_ids': [(4, x.id)
-                              for x in values.get('move_dest_ids', [])]
+                              for x in values.get('move_dest_ids', [])],
+            'orderpoint_id': values.get('orderpoint_id', False) and values.get(
+                'orderpoint_id').id,
         }
 
     @api.model
     def _prepare_purchase_request(self, origin, values):
         gpo = self.group_propagation_option
-        group = (gpo == 'fixed' and self.group_id.id) or \
-                (gpo == 'propagate' and values['group_id'].id) or False
+        group_id = (gpo == 'fixed' and self.group_id.id) or \
+                   (gpo == 'propagate' and values.get('group_id')
+                    and values['group_id'].id) or False
         return {
             'origin': origin,
             'company_id': values['company_id'].id,
             'picking_type_id': self.picking_type_id.id,
-            'group_id': group and group.id or False,
+            'group_id': group_id or False,
         }
 
     @api.model
@@ -44,16 +47,17 @@ class ProcurementRule(models.Model):
         extended.
         :return: False
         """
-        domain = ()
+        domain = (
+            ('state', '=', 'draft'),
+            ('picking_type_id', '=', self.picking_type_id.id),
+            ('company_id', '=', values['company_id'].id),
+        )
         gpo = self.group_propagation_option
-        group = (gpo == 'fixed' and self.group_id) or \
-                (gpo == 'propagate' and values['group_id']) or False
-        if group:
+        group_id = (gpo == 'fixed' and self.group_id.id) or \
+                   (gpo == 'propagate' and values['group_id'].id) or False
+        if group_id:
             domain += (
-                ('state', '=', 'draft'),
-                ('picking_type_id', '=', self.picking_type_id.id),
-                ('company_id', '=', values['company_id'].id),
-                ('group_id', '=', values['group_id'].id),
+                ('group_id', '=', group_id),
                 )
         return domain
 

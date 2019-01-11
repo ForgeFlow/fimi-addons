@@ -5,7 +5,7 @@
     "name": "Purchase Request",
     "author": "Eficent, "
               "Odoo Community Association (OCA)",
-    "version": "11.0.1.0.2",
+    "version": "11.0.1.0.0",
     "summary": "Use this module to have notification of requirements of "
                "materials and/or external services and keep track of such "
                "requirements.",
@@ -15,11 +15,11 @@
         "product"
     ],
     "data": [
+        "security/purchase_request.xml",
+        "security/ir.model.access.csv",
         "data/purchase_request_sequence.xml",
         "data/purchase_request_data.xml",
         "reports/report_purchase_request.xml",
-        "security/purchase_request.xml",
-        "security/ir.model.access.csv",
         "views/purchase_request_view.xml",
         "views/purchase_request_report.xml",
         "views/product_template.xml",
